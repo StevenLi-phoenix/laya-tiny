@@ -9,6 +9,7 @@ teacher:
   repo: convaiinnovations/laya
   revision: 55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851
   device: auto                       # auto | cpu | mps | cuda
+  precision: fp32                    # fp32 pins full precision; anything else keeps Laya's device autocast
   batch_size: 16
 
 # Order of `labels` is the order of the student's logits and of every stored distribution.

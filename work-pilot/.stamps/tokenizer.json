@@ -1,0 +1,10 @@
+{
+  "fingerprint": "41005a752ce37bcb59fff2bc7cfd708b2efcc9c27bd8930393175cfc6ca17d48",
+  "seconds": 0.32,
+  "finished": "2026-09-29T23:26:20",
+  "summary": {
+    "vocab_size": 8000,
+    "val_mean_tokens": 53.3,
+    "val_truncated": 0.0
+  }
+}

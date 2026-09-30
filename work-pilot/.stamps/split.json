@@ -1,0 +1,11 @@
+{
+  "fingerprint": "1ebc377c613cd1adca064542603ff77e67313de445970f8820cd487bddee7c4e",
+  "seconds": 0.17,
+  "finished": "2026-09-29T23:26:19",
+  "summary": {
+    "train": 7000,
+    "val": 456,
+    "leak_dropped": 0,
+    "leak_threshold": 0.6
+  }
+}

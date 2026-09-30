@@ -53,7 +53,7 @@ def _p(*parts: str) -> Callable[[Ctx], list[Path]]:
 
 STAGES: dict[str, Stage] = {s.name: s for s in [
     Stage("data", "data", (), ("data", "seed"), _p("data", "corpus.jsonl")),
-    Stage("label", "teacher", ("data",), ("task.teacher.kind", "task.teacher.checkpoint", "task.teacher.revision", "task.decisions"),
+    Stage("label", "teacher", ("data",), ("task.teacher.kind", "task.teacher.checkpoint", "task.teacher.revision", "task.teacher.precision", "task.decisions"),
           lambda ctx: [ctx.path("label", "corpus.jsonl"), ctx.path("label", "holdout.jsonl")],
           lambda ctx: [ctx.holdout]),
     Stage("split", "split", ("data", "label"), ("data.leak_jaccard", "data.val_fraction", "seed"),

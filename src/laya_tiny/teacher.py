@@ -68,7 +68,16 @@ class LayaTeacher:
             t0 = time.perf_counter()
             self._router = laya.Router(device=device, revision=self.tcfg.get("revision"))
             self._router.predict("warm-up", self.questions, model=self.tcfg["checkpoint"])
-            log.info("teacher %s loaded on %s in %.1fs", self.tcfg["checkpoint"], device, time.perf_counter() - t0)
+            agent = self._router._agents[self.tcfg["checkpoint"]]
+            if self.tcfg.get("precision", "fp32") == "fp32":
+                # Laya autocasts by default (bf16 on CUDA, fp16 on MPS for batches >= 5 rows), so
+                # labels would silently depend on the device. Pin full precision instead.
+                import torch
+
+                agent.amp_enabled, agent.dtype = False, torch.float32
+            dtypes = sorted({str(p.dtype) for p in agent.model.parameters()})
+            log.info("teacher %s loaded on %s in %.1fs (weights %s, autocast %s)", self.tcfg["checkpoint"], device,
+                     time.perf_counter() - t0, dtypes, agent.amp_enabled and str(agent.dtype))
         return self._router
 
     def agent(self) -> Any:
@@ -80,6 +89,7 @@ class LayaTeacher:
         a = self.agent()
         return {"kind": "laya", "laya_version": getattr(laya, "__version__", "?"), "checkpoint": self.tcfg["checkpoint"],
                 "repo": a.model_id_or_path, "subfolder": a.subfolder, "revision": a.revision,
+                "precision": "fp32" if not a.amp_enabled else f"amp-{a.dtype}",
                 "temperature": list(a.temperature) if a.temperature is not None else None,
                 "temperature_by_options": a.temperature_by_options}
 

@@ -1,0 +1,27 @@
+{
+  "vocab_size": 8000,
+  "val": {
+    "texts": 456,
+    "unk_rate": 0.0,
+    "mean_tokens": 53.34649122807018,
+    "p95_tokens": 118.0,
+    "chars_per_token": 5.667721779166324,
+    "truncated_frac": 0.0
+  },
+  "holdout_en": {
+    "texts": 205,
+    "unk_rate": 0.0,
+    "mean_tokens": 20.790243902439023,
+    "p95_tokens": 34.0,
+    "chars_per_token": 3.585405912717034,
+    "truncated_frac": 0.0
+  },
+  "holdout_other_lang": {
+    "texts": 19,
+    "unk_rate": 0.0,
+    "mean_tokens": 42.8421052631579,
+    "p95_tokens": 80.0,
+    "chars_per_token": 0.8832923832923832,
+    "truncated_frac": 0.0
+  }
+}
