@@ -20,6 +20,7 @@ from .util import log
 
 LENGTHS = ["one short sentence", "two or three sentences", "a longer message of 4-6 sentences"]
 _META = re.compile(r"^(text|example|message|input)\s*\d+\s*[:.)-]|\b(label|category|decision)\s*[:=]", re.I)
+_BULLET = re.compile(r"^\s*(?:[-*\u2022]|\d+\s*[.)])\s*")
 
 
 def label_text(dec: Decision, label: str) -> str:
@@ -65,10 +66,7 @@ def build_messages(spec: dict[str, Any], decs: list[Decision], req: dict[str, An
     ]
 
 
-def parse_texts(raw: Any, k: int, max_chars: int) -> list[str]:
-    items = raw.get("texts") if isinstance(raw, dict) else raw
-    if not isinstance(items, list):
-        raise ValueError('expected {"texts": [...]}')
+def _keep(items: list[Any], k: int, max_chars: int) -> list[str]:
     out = []
     for t in items[: k * 2]:
         if not isinstance(t, str):
@@ -79,6 +77,49 @@ def parse_texts(raw: Any, k: int, max_chars: int) -> list[str]:
     if not out:
         raise ValueError("no usable texts")
     return out
+
+
+def parse_texts(raw: Any, k: int, max_chars: int) -> list[str]:
+    items = raw.get("texts") if isinstance(raw, dict) else raw
+    if not isinstance(items, list):
+        raise ValueError('expected {"texts": [...]}')
+    return _keep(items, k, max_chars)
+
+
+def plain_messages(messages: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Same request, but one text per line instead of JSON: texts full of code and quotes are where a
+    small local model breaks JSON escaping, and plain lines need no escaping at all."""
+    system = messages[0]["content"].replace("Reply with JSON only.", "Reply with the texts only.")
+    user = messages[1]["content"].rsplit("Return {", 1)[0]
+    return [{"role": "system", "content": system},
+            {"role": "user", "content": user + "Return exactly one text per line: no numbering, no quotes, "
+                                               "no blank lines, no commentary, and no line breaks inside a text."}]
+
+
+def parse_lines(content: str, k: int, max_chars: int) -> list[str]:
+    lines = [_BULLET.sub("", ln).strip().strip('"').strip() for ln in (content or "").splitlines()]
+    return _keep([ln for ln in lines if ln], k, max_chars)
+
+
+def synth_one(llm: Any, spec: dict[str, Any], decs: list[Decision], req: dict[str, Any], purpose: str, *,
+              max_chars: int, seed: int, temperature: float) -> list[dict[str, Any]]:
+    msgs = build_messages(spec, decs, req, purpose)
+    req_seed = seed * 100_003 + req["i"]
+    meta: dict[str, Any] = {"style": req["style"], "req": req["i"]}
+    try:
+        texts = llm.chat_json(msgs, lambda raw: parse_texts(raw, req["k"], max_chars),
+                              seed=req_seed, temperature=temperature)
+    except LLMError as e:
+        log.warning("synth request %d: JSON failed (%s), falling back to plain lines", req["i"], str(e)[:120])
+        try:
+            content = llm.chat(plain_messages(msgs), seed=req_seed + 7, temperature=temperature, json_mode=False)
+            texts = parse_lines(content, req["k"], max_chars)
+        except (LLMError, ValueError) as e2:
+            log.warning("synth request %d failed, skipped: %s", req["i"], str(e2)[:160])
+            return []
+        meta["fallback"] = "lines"
+        log.info("synth request %d recovered %d texts via plain-lines fallback", req["i"], len(texts))
+    return [{"text": t, "weak": dict(req["labels"]), "meta": dict(meta)} for t in texts]
 
 
 def generate(cfg: dict[str, Any], root: Path, rows: int, purpose: str) -> list[dict[str, Any]]:
@@ -99,16 +140,10 @@ def generate(cfg: dict[str, Any], root: Path, rows: int, purpose: str) -> list[d
     llm = make_llm(cfg["llm"], root / (cfg["work_dir"]) / "llm-cache")
     max_chars = int(cfg["data"]["max_chars"])
 
+    temperature = float(scfg.get("temperature", 0.95))
+
     def one(req: dict[str, Any]) -> list[dict[str, Any]]:
-        msgs = build_messages(spec, decs, req, purpose)
-        try:
-            texts = llm.chat_json(msgs, lambda raw: parse_texts(raw, req["k"], max_chars),
-                                  seed=seed * 100_003 + req["i"], temperature=float(scfg.get("temperature", 0.95)))
-        except LLMError as e:
-            log.warning("synth request %d failed, skipped: %s", req["i"], str(e)[:160])
-            return []
-        return [{"text": t, "weak": dict(req["labels"]), "meta": {"style": req["style"], "req": req["i"]}}
-                for t in texts]
+        return synth_one(llm, spec, decs, req, purpose, max_chars=max_chars, seed=seed, temperature=temperature)
 
     out: list[dict[str, Any]] = []
     workers = max(1, int(cfg["llm"].get("concurrency", 1)))

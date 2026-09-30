@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- Synthetic-data requests whose JSON stayed broken after 3 retries (typically texts containing code with
+  unescaped quotes) were dropped. They now fall back to one plain-text request asking for one text per line;
+  recovered rows are tagged `meta.fallback = "lines"`, and only requests that still yield nothing are skipped.
+
 ## [0.2.0] - 2026-09-30
 
 ### Added
