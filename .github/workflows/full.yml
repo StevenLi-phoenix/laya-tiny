@@ -1,13 +1,13 @@
 name: full-eval
 # The real pipeline with the Laya teacher, on a hosted CPU runner. Teacher labelling on CPU is the
 # slow part, so the corpus is capped (input `max_rows`); the label cache is kept between runs so
-# later runs only label new rows.
+# later runs only label new rows. Laya fp32 on a 4-vCPU runner is roughly 0.5 rows/s, so 1500 rows ≈ 50 min.
 on:
   workflow_dispatch:
     inputs:
       max_rows:
         description: corpus rows to label and train on
-        default: "4000"
+        default: "1500"
       epochs:
         description: training epochs
         default: "30"
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 300
     env:
-      MAX_ROWS: ${{ inputs.max_rows || '4000' }}
+      MAX_ROWS: ${{ inputs.max_rows || '1500' }}
       EPOCHS: ${{ inputs.epochs || '30' }}
     steps:
       - uses: actions/checkout@v4

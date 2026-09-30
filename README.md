@@ -123,7 +123,7 @@ dept, urgency, churn = sess.run(None, {"input_ids": ids, "attention_mask": np.on
 
 - **`ci.yml`** (every push / PR): pytest + `make smoke` on a hosted Ubuntu runner, CPU only; uploads the smoke report.
 - **`full.yml`** (manual or monthly): the real pipeline with the Laya teacher on CPU. CPU labelling is slow, so the
-  corpus is capped by the `max_rows` input (default 4000) and the label cache is carried between runs. Uploads the
+  corpus is capped by the `max_rows` input (default 1500, ≈ 50 min of CPU labelling) and the label cache is carried between runs. Uploads the
   report and the ONNX files as artifacts. Weights never go into git.
 
 ## Layout
