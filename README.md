@@ -42,6 +42,40 @@ Honest caveat: for a goal-driven project the holdout is written by the same LLM,
 agrees with the task as the LLM understood it", not human-verified accuracy. Drop real labelled rows into the holdout
 when you have them.
 
+## Example: gh-issue-triage
+
+![gh-issue-triage: size, latency and accuracy](projects/gh-issue-triage/reports/overview.png)
+
+One sentence in: *"Triage GitHub issues for an open-source library: what kind of issue it is, how severe it is, and
+whether it includes enough information to reproduce."* No dataset, no labelling. The LLM turned that into three
+decisions — `issue_type` (bug / feature / docs / question / other), `severity` (0–3) and `reproducible`
+(yes / no) — wrote 3,000 training issues plus a separate holdout, Laya labelled them, and the pipeline came back
+with a **3.14M-parameter int8 model (3.71 MB with its tokenizer)** that answers all three at once. The whole project — goal, the
+LLM-designed [`task.yaml`](projects/gh-issue-triage/task.yaml), and the
+[full report](projects/gh-issue-triage/reports/2026-09-30.md) and the
+[model card](projects/gh-issue-triage/MODEL_CARD.md) — lives in
+[`projects/gh-issue-triage/`](projects/gh-issue-triage/).
+
+Synthetic holdout, 252 issues. CPU latency is single-row, 1 thread, measured on the machine that ran the pipeline
+(not the M4 Pro used for the ticket table below).
+
+| | issue_type | severity | reproducible | size | CPU p50 |
+|---|---|---|---|---|---|
+| **laya-tiny int8** | **56.3 %** | **59.1 %** | **78.6 %** | **3.71 MB** | **0.63 ms** |
+| Laya typed-decisions fp32 (teacher) | 52.8 % | 57.1 % | 68.3 % | 846 MB | 331 ms |
+| TF-IDF + LogReg on the same labels | 43.3 % | 54.0 % | 64.7 % | 4.14 MB | 0.86 ms |
+
+**Acceptance: PASS on every check** — each decision within 3 pp of the teacher (actually +3.6 / +2.0 / +10.3 pp
+above it), ≤ 5 MB, ≤ 5 ms. That is ≈ 228× smaller and ≈ 527× faster than the model it learned from, and it beats
+a TF-IDF baseline of the same size by 13 pp on issue type — the decision where word counts alone don't tell a bug
+report from a usage question.
+
+Read the "beats the teacher" part with the caveat above in mind: the holdout's gold labels are the label
+combinations the LLM was asked to write, and the student also trains on those as weak hard labels, so it partly
+learns the LLM's idea of the task where Laya only answers the questions. It is strong evidence the student learned
+*this task definition*; it is not a claim about accuracy on real GitHub issues. The packaged folder
+(`projects/gh-issue-triage/work/package/`, not committed) runs with `python predict.py "<issue text>"`.
+
 ## Results on the hand-written ticket task (v0.1.0, [full report](reports/2026-09-29.md))
 
 English holdout, 205 hand-labelled tickets. CPU latency is single-row on an M4 Pro.

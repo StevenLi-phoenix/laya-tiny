@@ -1,0 +1,55 @@
+# Designed by the LLM from goal.txt; edit freely, then re-run.
+version: 1
+name: gh-issue-triage
+goal: 'Triage GitHub issues for an open-source library: what kind of issue it is,
+  how severe it is, and whether it includes enough information to reproduce'
+summary: Classify GitHub issues by type, severity, and reproducibility.
+teacher:
+  kind: laya
+  checkpoint: typed-decisions
+  repo: convaiinnovations/laya
+  revision: 55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851
+  device: auto
+  precision: fp32
+  batch_size: 8
+decisions:
+  issue_type:
+    labels:
+    - bug
+    - feature
+    - docs
+    - question
+    - other
+    question:
+      type: choice
+      instructions: What kind of issue is reported?
+      criteria:
+        bug: A defect in the library's behavior
+        feature: A request for new functionality
+        docs: A documentation or typo issue
+        question: A question about how to use the library
+        other: Does not fit any of the above
+  severity:
+    labels:
+    - '0'
+    - '1'
+    - '2'
+    - '3'
+    question:
+      type: score
+      instructions: How severe is the issue?
+      criteria:
+      - 'low: cosmetic or minor inconvenience'
+      - 'medium: partial functionality loss'
+      - 'high: core functionality broken'
+      - 'critical: crash, data loss, or security impact'
+  reproducible:
+    labels:
+    - 'false'
+    - 'true'
+    question:
+      type: noul
+      instructions: Does the issue include enough information to reproduce?
+      criteria:
+        'true': Yes, it contains steps or code to reproduce
+        'false': No, it lacks reproducible steps

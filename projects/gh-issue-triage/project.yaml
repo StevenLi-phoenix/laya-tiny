@@ -1,0 +1,19 @@
+work_dir: projects/gh-issue-triage/work
+runs_dir: projects/gh-issue-triage/runs
+reports_dir: projects/gh-issue-triage/reports
+holdout: projects/gh-issue-triage/work/data/holdout.jsonl
+data:
+  languages:
+  - en
+  max_rows: 3000
+  sources:
+  - name: llm-synth
+    kind: llm_synth
+    rows: 3000
+  holdout_synth:
+    rows: 300
+train:
+  hard_weight: 0.3
+eval:
+  external: []
+  laya_latency_rows: 20

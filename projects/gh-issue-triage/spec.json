@@ -1,0 +1,70 @@
+{
+  "name": "gh-issue-triage",
+  "summary": "Classify GitHub issues by type, severity, and reproducibility.",
+  "language": "en",
+  "input_description": "A single GitHub issue body written by a community contributor, typically 2-10 sentences, often terse, sometimes with a stack trace or code snippet.",
+  "styles": [
+    "terse one-line bug report",
+    "detailed reproducible steps",
+    "vague complaint with no details",
+    "feature request with rationale",
+    "documentation typo report",
+    "stack trace paste with no context",
+    "polite question about API usage",
+    "angry rant about a regression"
+  ],
+  "decisions": {
+    "issue_type": {
+      "labels": [
+        "bug",
+        "feature",
+        "docs",
+        "question",
+        "other"
+      ],
+      "question": {
+        "type": "choice",
+        "instructions": "What kind of issue is reported?",
+        "criteria": {
+          "bug": "A defect in the library's behavior",
+          "feature": "A request for new functionality",
+          "docs": "A documentation or typo issue",
+          "question": "A question about how to use the library",
+          "other": "Does not fit any of the above"
+        }
+      }
+    },
+    "severity": {
+      "labels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "question": {
+        "type": "score",
+        "instructions": "How severe is the issue?",
+        "criteria": [
+          "low: cosmetic or minor inconvenience",
+          "medium: partial functionality loss",
+          "high: core functionality broken",
+          "critical: crash, data loss, or security impact"
+        ]
+      }
+    },
+    "reproducible": {
+      "labels": [
+        "false",
+        "true"
+      ],
+      "question": {
+        "type": "noul",
+        "instructions": "Does the issue include enough information to reproduce?",
+        "criteria": {
+          "true": "Yes, it contains steps or code to reproduce",
+          "false": "No, it lacks reproducible steps"
+        }
+      }
+    }
+  }
+}

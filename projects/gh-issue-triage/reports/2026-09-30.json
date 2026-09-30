@@ -1,0 +1,230 @@
+{
+  "generated": "2026-09-30T01:03:09",
+  "profile": "default",
+  "main_slice": "en",
+  "task": "gh-issue-triage",
+  "goal": "Triage GitHub issues for an open-source library: what kind of issue it is, how severe it is, and whether it includes enough information to reproduce",
+  "holdout": {
+    "path": "projects/gh-issue-triage/work/data/holdout.jsonl",
+    "rows": 252,
+    "en": 252,
+    "other_lang": 0,
+    "source": "llm-synth-holdout"
+  },
+  "teacher": "Laya typed-decisions fp32",
+  "decisions": {
+    "issue_type": [
+      "bug",
+      "feature",
+      "docs",
+      "question",
+      "other"
+    ],
+    "severity": [
+      "0",
+      "1",
+      "2",
+      "3"
+    ],
+    "reproducible": [
+      "false",
+      "true"
+    ]
+  },
+  "student": {
+    "params": 3138635,
+    "max_len": 192,
+    "temperatures": {
+      "issue_type": 1.4273,
+      "severity": 1.4273,
+      "reproducible": 1.9905
+    },
+    "run_id": "20260930-010230-default"
+  },
+  "backends": [
+    {
+      "name": "laya-tiny int8",
+      "kind": "student",
+      "size_bytes": 3706870,
+      "latency_ms": {
+        "p50": 0.6290545134106651,
+        "p95": 1.7916015960508973,
+        "runs": 300,
+        "what": "onnxruntime CPU 1 thread, batch=1, incl. tokenisation"
+      },
+      "params": 3138635,
+      "slices": {
+        "en": {
+          "rows": 252,
+          "issue_type": {
+            "accuracy": 0.5634920634920635,
+            "macro_f1": 0.5614308773086355,
+            "ece": 0.16166724714021832,
+            "teacher_agreement": 0.7698412698412699,
+            "teacher_tv": 0.15655157727842625
+          },
+          "severity": {
+            "accuracy": 0.5912698412698413,
+            "macro_f1": 0.6040849292010572,
+            "ece": 0.1816787528140204,
+            "teacher_agreement": 0.6190476190476191,
+            "teacher_tv": 0.13969774983732708
+          },
+          "reproducible": {
+            "accuracy": 0.7857142857142857,
+            "macro_f1": 0.7852272727272727,
+            "ece": 0.19955125876835417,
+            "teacher_agreement": 0.7380952380952381,
+            "teacher_tv": 0.08617587479352952
+          }
+        }
+      }
+    },
+    {
+      "name": "laya-tiny fp32",
+      "kind": "student",
+      "size_bytes": 13053470,
+      "latency_ms": {
+        "p50": 1.235898002050817,
+        "p95": 3.4642404003534497,
+        "runs": 300,
+        "what": "onnxruntime CPU 1 thread, batch=1, incl. tokenisation"
+      },
+      "params": 3138635,
+      "slices": {
+        "en": {
+          "rows": 252,
+          "issue_type": {
+            "accuracy": 0.5595238095238095,
+            "macro_f1": 0.5581800641743622,
+            "ece": 0.15756601402683862,
+            "teacher_agreement": 0.7738095238095238,
+            "teacher_tv": 0.15656832393585596
+          },
+          "severity": {
+            "accuracy": 0.5873015873015873,
+            "macro_f1": 0.5997734548140852,
+            "ece": 0.17794034109702186,
+            "teacher_agreement": 0.623015873015873,
+            "teacher_tv": 0.13968020624176708
+          },
+          "reproducible": {
+            "accuracy": 0.7857142857142857,
+            "macro_f1": 0.7852272727272727,
+            "ece": 0.1996201250761274,
+            "teacher_agreement": 0.7380952380952381,
+            "teacher_tv": 0.0863335358960288
+          }
+        }
+      }
+    },
+    {
+      "name": "Laya typed-decisions fp32",
+      "kind": "teacher",
+      "size_bytes": 846195716,
+      "latency_ms": {
+        "p50": 331.2221225205576,
+        "p95": 827.2387516844906,
+        "runs": 20,
+        "what": "PyTorch CPU, batch=1, end-to-end"
+      },
+      "slices": {
+        "en": {
+          "rows": 252,
+          "issue_type": {
+            "accuracy": 0.5277777777777778,
+            "macro_f1": 0.5195359224543518,
+            "ece": 0.19601019047619042,
+            "teacher_agreement": 1.0,
+            "teacher_tv": 0.0
+          },
+          "severity": {
+            "accuracy": 0.5714285714285714,
+            "macro_f1": 0.5826139993643005,
+            "ece": 0.11229808333333333,
+            "teacher_agreement": 1.0,
+            "teacher_tv": 0.0
+          },
+          "reproducible": {
+            "accuracy": 0.6825396825396826,
+            "macro_f1": 0.6823596142938173,
+            "ece": 0.070295238095238,
+            "teacher_agreement": 1.0,
+            "teacher_tv": 0.0
+          }
+        }
+      }
+    },
+    {
+      "name": "TF-IDF + LogReg",
+      "kind": "baseline",
+      "size_bytes": 4138246,
+      "latency_ms": {
+        "p50": 0.8566309988964349,
+        "p95": 1.0612472644424997,
+        "runs": 300,
+        "what": "scikit-learn CPU, batch=1"
+      },
+      "slices": {
+        "en": {
+          "rows": 252,
+          "issue_type": {
+            "accuracy": 0.43253968253968256,
+            "macro_f1": 0.40542947501581283,
+            "ece": 0.381951234816044,
+            "teacher_agreement": 0.7936507936507936,
+            "teacher_tv": 0.3923828038523268
+          },
+          "severity": {
+            "accuracy": 0.5396825396825397,
+            "macro_f1": 0.5555809530225236,
+            "ece": 0.16949801367888048,
+            "teacher_agreement": 0.7261904761904762,
+            "teacher_tv": 0.3187607258672075
+          },
+          "reproducible": {
+            "accuracy": 0.6468253968253969,
+            "macro_f1": 0.6461511761828882,
+            "ece": 0.1668750995588902,
+            "teacher_agreement": 0.7738095238095238,
+            "teacher_tv": 0.22461138289037566
+          }
+        }
+      }
+    }
+  ],
+  "acceptance": {
+    "margin": 0.03,
+    "checks": {
+      "accuracy/issue_type": {
+        "student": 0.5634920634920635,
+        "teacher": 0.5277777777777778,
+        "gap": 0.0357142857142857,
+        "pass": true
+      },
+      "accuracy/severity": {
+        "student": 0.5912698412698413,
+        "teacher": 0.5714285714285714,
+        "gap": 0.019841269841269882,
+        "pass": true
+      },
+      "accuracy/reproducible": {
+        "student": 0.7857142857142857,
+        "teacher": 0.6825396825396826,
+        "gap": 0.10317460317460314,
+        "pass": true
+      },
+      "size_int8_mb": {
+        "value": 3.70687,
+        "limit": 5.0,
+        "pass": true
+      },
+      "cpu_p50_ms": {
+        "value": 0.6290545134106651,
+        "limit": 5.0,
+        "pass": true
+      }
+    },
+    "pass": true
+  }
+}

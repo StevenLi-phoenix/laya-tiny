@@ -1,0 +1,1 @@
+Triage GitHub issues for an open-source library: what kind of issue it is, how severe it is, and whether it includes enough information to reproduce

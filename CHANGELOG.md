@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `projects/gh-issue-triage/`: first end-to-end goal-driven project (goal, LLM-designed `task.yaml`, report,
+  overview chart and `MODEL_CARD.md`; weights are not committed) and a README "Example: gh-issue-triage" section. The 3.71 MB int8 student passes acceptance on
+  every check (issue_type / severity / reproducible 56.3 / 59.1 / 78.6 % vs teacher 52.8 / 57.1 / 68.3 % on a
+  252-row synthetic holdout, CPU p50 0.63 ms).
+
 ### Fixed
 - Synthetic-data requests whose JSON stayed broken after 3 retries (typically texts containing code with
   unescaped quotes) were dropped. They now fall back to one plain-text request asking for one text per line;
