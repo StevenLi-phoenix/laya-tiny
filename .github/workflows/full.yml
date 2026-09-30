@@ -1,0 +1,61 @@
+name: full-eval
+# The real pipeline with the Laya teacher, on a hosted CPU runner. Teacher labelling on CPU is the
+# slow part, so the corpus is capped (input `max_rows`); the label cache is kept between runs so
+# later runs only label new rows.
+on:
+  workflow_dispatch:
+    inputs:
+      max_rows:
+        description: corpus rows to label and train on
+        default: "4000"
+      epochs:
+        description: training epochs
+        default: "30"
+  schedule:
+    - cron: "17 6 1 * *"      # monthly
+
+jobs:
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      MAX_ROWS: ${{ inputs.max_rows || '4000' }}
+      EPOCHS: ${{ inputs.epochs || '30' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - name: Install (CPU torch + Laya teacher)
+        run: |
+          uv venv -p 3.12 .venv
+          uv pip install --python .venv/bin/python torch --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .venv/bin/python -e ".[dev,teacher]"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            data/raw
+            ~/.cache/huggingface
+          key: sources-${{ hashFiles('configs/pipeline.yaml') }}
+          restore-keys: sources-
+      - uses: actions/cache@v4
+        with:
+          path: work/label/cache
+          key: labels-${{ hashFiles('configs/task.yaml') }}-${{ github.run_id }}
+          restore-keys: labels-${{ hashFiles('configs/task.yaml') }}-
+      - name: pytest
+        run: .venv/bin/python -m pytest -q
+      - name: pipeline
+        run: >
+          make report SET="data.max_rows=${MAX_ROWS} train.epochs=${EPOCHS} train.device=cpu
+          task.teacher.device=cpu eval.laya_latency_rows=20"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laya-tiny-${{ github.run_number }}
+          path: |
+            reports/
+            work/export/
+            work/tokenizer/stats.json
+            work/train/train.json
+            work/calibrate/calibration.json
+            work/pipeline.log

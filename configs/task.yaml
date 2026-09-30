@@ -1,0 +1,42 @@
+# The fixed decision contract. Changing a label set or a question means re-labelling
+# and re-training: bump `version` so every cached stage downstream is invalidated.
+version: 1
+name: support-ticket-triage
+
+teacher:
+  kind: laya                         # laya | rules (rules = offline keyword teacher for smoke/CI)
+  checkpoint: typed-decisions        # English-only; never mix checkpoints (probabilities are not interchangeable)
+  repo: convaiinnovations/laya
+  revision: 55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851
+  device: auto                       # auto | cpu | mps | cuda
+  batch_size: 16
+
+# Order of `labels` is the order of the student's logits and of every stored distribution.
+decisions:
+  department:
+    labels: [billing, technical, account, sales]
+    question:
+      type: choice
+      instructions: Which team should handle this ticket?
+      criteria:
+        billing: invoices, charges, refunds, payment methods
+        technical: bugs, crashes, errors, outages, performance
+        account: login, password, profile, permissions, deleting the account
+        sales: pricing questions, plans, upgrades, quotes
+  urgency:
+    labels: ["0", "1", "2"]
+    question:
+      type: score
+      instructions: How urgent is this ticket?
+      criteria:
+        - "not urgent: a question or minor annoyance"
+        - "soon: something is broken but there is a workaround"
+        - "blocking: work or money is stopped right now"
+  churn_risk:
+    labels: ["false", "true"]
+    question:
+      type: noul
+      instructions: Does the customer threaten to cancel, leave or switch to a competitor?
+      criteria:
+        "true": the customer says they will cancel, leave, or move to another product
+        "false": no threat to cancel or leave

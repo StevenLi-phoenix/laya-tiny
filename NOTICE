@@ -1,0 +1,16 @@
+laya-tiny
+Copyright 2026 Steven Li
+
+This project distils the Laya typed-decisions checkpoint
+(https://github.com/NandhaKishorM/laya, https://huggingface.co/convaiinnovations/laya,
+Apache License 2.0) into a small task-specific model. Laya is used as a teacher at training time
+only; no Laya code or weights are redistributed here.
+
+Training text is downloaded at run time and is NOT redistributed in this repository:
+  - Tobi-Bueck/customer-support-tickets (Hugging Face), CC BY-NC 4.0
+  - bitext/Bitext-customer-support-llm-chatbot-training-dataset (Hugging Face), CDLA-Sharing 1.0
+Models trained with the default configuration are derived from CC BY-NC 4.0 data and inherit its
+non-commercial restriction. Swap `data.sources` for commercial use.
+
+data/holdout/tickets.jsonl: 40 rows from github.com/StevenLi-phoenix/laya-skill (v0.2.0) plus 184
+English rows written and labelled for this project.

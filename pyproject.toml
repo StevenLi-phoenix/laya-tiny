@@ -1,0 +1,38 @@
+[project]
+name = "laya-tiny"
+version = "0.1.0"
+description = "Distil the Laya typed-decision model into a ~3M-parameter task-specific Transformer, end to end."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10,<3.14"
+dependencies = [
+  "torch>=2.4",
+  "tokenizers>=0.20",
+  "onnx>=1.16",
+  "onnxruntime>=1.20",
+  "numpy",
+  "pyyaml",
+  "scikit-learn",
+  "matplotlib",
+]
+
+[project.optional-dependencies]
+teacher = ["laya==0.3.22"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+laya-tiny = "laya_tiny.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "unit: fast, no network",
+  "integration: runs several stages end to end (still offline, CPU)",
+]

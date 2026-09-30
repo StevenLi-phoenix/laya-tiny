@@ -1,0 +1,31 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - name: Install (CPU torch)
+        run: |
+          uv venv -p 3.12 .venv
+          uv pip install --python .venv/bin/python torch --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .venv/bin/python -e ".[dev]"
+      - name: pytest
+        run: .venv/bin/python -m pytest -q
+      - name: smoke pipeline (offline, keyword teacher, 1 epoch)
+        run: make smoke
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: |
+            work-smoke/reports/
+            work-smoke/export/meta.json
+            work-smoke/pipeline.log

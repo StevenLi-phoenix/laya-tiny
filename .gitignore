@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+data/raw/
+work/
+work-smoke/
+runs/
+*.onnx
+*.onnx.data
+*.pt
+.DS_Store

@@ -1,0 +1,14 @@
+tokenizer:
+  kind: bpe            # byte-level BPE: no UNK ever, unseen scripts fall back to bytes
+  vocab_size: 8000
+  min_frequency: 2
+  lowercase: false
+
+encoder:
+  layers: 4
+  d_model: 192
+  heads: 4
+  ffn_mult: 4
+  max_len: 192
+  dropout: 0.1
+  pooling: mean        # mean | cls

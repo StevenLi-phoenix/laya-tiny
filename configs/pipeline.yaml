@@ -1,0 +1,93 @@
+seed: 1234
+work_dir: work
+runs_dir: runs
+reports_dir: reports
+holdout: data/holdout/tickets.jsonl
+
+data:
+  cache_dir: data/raw
+  languages: [en]
+  min_chars: 12
+  max_chars: 800            # truncate (at a sentence boundary) so teacher and student see the same text
+  max_rows: 30000          # cap on the unlabelled corpus (teacher labelling is ~110 ms/row on MPS)
+  leak_jaccard: 0.6        # word-3-gram Jaccard vs the holdout above which a corpus row is dropped
+  val_fraction: 0.06
+  sources:
+    - name: tobi-bueck-20k
+      kind: tobi_bueck
+      url: https://huggingface.co/datasets/Tobi-Bueck/customer-support-tickets/resolve/main/dataset-tickets-multi-lang-4-20k.csv
+    - name: tobi-bueck-50
+      kind: tobi_bueck
+      url: https://huggingface.co/datasets/Tobi-Bueck/customer-support-tickets/resolve/main/aa_dataset-tickets-multi-lang-5-2-50-version.csv
+    - name: bitext
+      kind: bitext
+      url: https://huggingface.co/datasets/bitext/Bitext-customer-support-llm-chatbot-training-dataset/resolve/main/Bitext_Sample_Customer_Support_Training_Dataset_27K_responses-v11.csv
+      max_rows: 9000
+  # Weak hard labels derived from source metadata; only unambiguous mappings.
+  weak_labels:
+    tobi_bueck_queue:
+      Billing and Payments: {department: billing}
+      Sales and Pre-Sales: {department: sales}
+      Technical Support: {department: technical}
+      IT Support: {department: technical}
+      Service Outages and Maintenance: {department: technical}
+    bitext_intent:
+      check_invoice: {department: billing}
+      get_invoice: {department: billing}
+      check_payment_methods: {department: billing}
+      payment_issue: {department: billing}
+      check_refund_policy: {department: billing}
+      get_refund: {department: billing}
+      track_refund: {department: billing}
+      create_account: {department: account}
+      delete_account: {department: account}
+      edit_account: {department: account}
+      recover_password: {department: account}
+      registration_problems: {department: account}
+      switch_account: {department: account}
+
+train:
+  epochs: 30
+  batch_size: 128
+  lr: 1.0e-3
+  weight_decay: 0.01
+  warmup_ratio: 0.05
+  kd_temperature: 2.0
+  hard_weight: 0.1          # weight of the weak-label cross-entropy (0 = pure distillation)
+  head_weights: {department: 1.0, urgency: 1.0, churn_risk: 1.0}
+  patience: 5
+  device: auto
+
+calibrate:
+  grid: [0.5, 5.0, 91]      # log-spaced temperature search: min, max, points
+
+export:
+  opset: 17
+  atol: 1.0e-4
+
+eval:
+  latency_runs: 300
+  laya_latency_rows: 30     # teacher latency is measured on this many holdout rows (CPU, batch=1)
+  acceptance:
+    max_acc_drop: 0.03      # student accuracy >= teacher accuracy - 3 pp, per decision (English holdout)
+    max_int8_mb: 5
+    max_p50_ms: 5
+  # Predictions made elsewhere on the same holdout (JSONL rows {id, probs: {decision: [..]}}).
+  external: []
+
+profiles:
+  # Offline, CPU, ~1 minute: templated corpus + keyword teacher. Used by `make smoke` and CI.
+  smoke:
+    work_dir: work-smoke
+    runs_dir: work-smoke/runs
+    reports_dir: work-smoke/reports
+    task: {teacher: {kind: rules}}
+    data:
+      max_rows: 600
+      sources:
+        - {name: templates, kind: templates, rows: 700}
+    model:
+      tokenizer: {vocab_size: 600}
+      encoder: {layers: 2, d_model: 64, heads: 2, max_len: 64}
+    train: {epochs: 1, batch_size: 64, device: cpu}
+    eval: {latency_runs: 30, laya_latency_rows: 0}
