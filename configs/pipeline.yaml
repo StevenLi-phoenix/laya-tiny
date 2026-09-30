@@ -46,6 +46,26 @@ data:
       registration_problems: {department: account}
       switch_account: {department: account}
 
+# The "big model": any OpenAI-compatible chat endpoint. Used by `laya-tiny new` to design the task
+# from a goal and to synthesise training/holdout texts. Env LAYA_TINY_LLM_URL overrides base_url.
+llm:
+  kind: openai              # openai | fake (offline, for tests/smoke)
+  base_url: http://127.0.0.1:8080/v1
+  model: local
+  api_key_env: ""           # name of an env var holding a key; the value is never logged or cached
+  temperature: 0.8
+  max_tokens: 4000
+  timeout: 600
+  retries: 3
+  concurrency: 2
+  json_mode: true
+  extra_body:               # llama.cpp + Qwen3: skip the thinking phase, we only want JSON
+    chat_template_kwargs: {enable_thinking: false}
+
+synth:
+  per_request: 10           # texts per LLM call
+  temperature: 0.95
+
 train:
   epochs: 30
   batch_size: 128
@@ -91,6 +111,16 @@ profiles:
       max_rows: 600
       sources:
         - {name: templates, kind: templates, rows: 700}
+    model:
+      tokenizer: {vocab_size: 600}
+      encoder: {layers: 2, d_model: 64, heads: 2, max_len: 64}
+    train: {epochs: 1, batch_size: 64, device: cpu}
+    eval: {latency_runs: 30, laya_latency_rows: 0, external: []}
+    llm: {kind: fake}
+  # Offline end-to-end check of `laya-tiny new`: fake LLM + keyword teacher + tiny model, CPU.
+  smoke-new:
+    task: {teacher: {kind: rules}}
+    llm: {kind: fake}
     model:
       tokenizer: {vocab_size: 600}
       encoder: {layers: 2, d_model: 64, heads: 2, max_len: 64}

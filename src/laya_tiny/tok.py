@@ -38,6 +38,8 @@ def load_tokenizer(path: Path) -> Tokenizer:
 
 
 def coverage(tok: Tokenizer, texts: list[str], max_len: int) -> dict[str, float]:
+    if not texts:
+        return {"texts": 0}
     tok.no_truncation()
     tok.no_padding()
     lens, unk, total, chars = [], 0, 0, 0
@@ -65,11 +67,12 @@ def run(ctx: Ctx) -> dict[str, Any]:
     tok.save(str(out))
     val = [r["text"] for r in read_jsonl(ctx.path("split", "val.jsonl"))]
     holdout = read_jsonl(ctx.holdout)
-    stats = {"vocab_size": tok.get_vocab_size(), "val": coverage(tok, val, max_len),
-             "holdout_en": coverage(tok, [h["text"] for h in holdout if h.get("language", "en") == "en"], max_len)}
-    other = [h["text"] for h in holdout if h.get("language", "en") != "en"]
-    if other:
-        stats["holdout_other_lang"] = coverage(tok, other, max_len)
+    main = (ctx.cfg["data"].get("languages") or ["en"])[0]
+    stats: dict[str, Any] = {"vocab_size": tok.get_vocab_size(), "val": coverage(tok, val, max_len)}
+    for key, rows in ((f"holdout_{main}", [h["text"] for h in holdout if h.get("language", main) == main]),
+                      ("holdout_other_lang", [h["text"] for h in holdout if h.get("language", main) != main])):
+        if rows:
+            stats[key] = coverage(tok, rows, max_len)
     write_json(ctx.path("tokenizer", "stats.json"), stats)
     for k, v in stats.items():
         log.info("tokenizer %s: %s", k, v)

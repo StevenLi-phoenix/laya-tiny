@@ -9,7 +9,40 @@ you don't need a model that can read arbitrary questions. laya-tiny distils Laya
 **3.35M-parameter Transformer with its own tokenizer and three fixed heads**, trained end to end by one
 reproducible pipeline — the way you'd run a YOLO training loop, just for text triage.
 
-## Results (v0.1.0, [full report](reports/2026-09-29.md))
+## One goal in, an expert model out
+
+```bash
+make new GOAL="Triage GitHub issues: what kind of issue, how severe, does it include enough to reproduce"
+# or: laya-tiny new "<goal>" --name gh-issue-triage --rows 3000
+```
+
+```
+goal ──► spec (LLM) ──► data (LLM synth + synthetic holdout) ──► label (Laya) ──► split ──► tokenizer
+     ──► train ──► calibrate ──► export ──► eval ──► report ──► package  →  projects/<name>/work/package/
+```
+
+1. **spec** — the big model turns the goal into 1–4 typed decisions (`choice` / `score` / `noul`), an input
+   description and writing styles. Output is validated against the same contract as a hand-written
+   `task.yaml` (retries with the error fed back) and saved to `projects/<name>/{goal.txt,spec.json,task.yaml}` —
+   edit it and re-run if you disagree with the design.
+2. **data** — the big model writes training texts stratified over every label combination × style × length, plus a
+   separate synthetic holdout. Text is cleaned, truncated, de-duplicated and leak-checked like any other source; the
+   label combination it was asked for becomes a weak hard label (train) or the gold label (holdout).
+3. **label → package** — Laya labels everything with the LLM-designed questions (`typed-decisions` for English,
+   `multilingual` otherwise), then the usual student pipeline runs. The last stage writes a self-contained folder:
+   `model.onnx` (int8), `tokenizer.json`, `model.json` (labels, questions, metrics) and a `predict.py` that needs only
+   `onnxruntime tokenizers numpy`.
+
+The LLM is any OpenAI-compatible endpoint (`llm.base_url`, default a local llama-server on :8080, or env
+`LAYA_TINY_LLM_URL`). Every raw response is stored under `<work>/llm-cache/` before parsing, so re-runs cost nothing.
+Tested with Qwen3.8-27B IQ2_XXS on an RTX 4070 Ti SUPER, thinking disabled: ~7 s per 10 texts, and Laya (batch 8,
+1.9 GB) labels alongside the LLM on the same 16 GB card.
+
+Honest caveat: for a goal-driven project the holdout is written by the same LLM, so its accuracy means "the student
+agrees with the task as the LLM understood it", not human-verified accuracy. Drop real labelled rows into the holdout
+when you have them.
+
+## Results on the hand-written ticket task (v0.1.0, [full report](reports/2026-09-29.md))
 
 English holdout, 205 hand-labelled tickets. CPU latency is single-row on an M4 Pro.
 
@@ -88,6 +121,7 @@ labelling run resumes where it stopped and a new question never reuses stale lab
 make setup            # uv venv (py3.12) + editable install with the Laya teacher extra
 make test             # pytest: 50+ unit tests + an end-to-end smoke run
 make smoke            # whole pipeline offline in ~10 s (templated corpus, keyword teacher)
+make smoke-new        # goal-driven flow offline (fake LLM) in ~5 s
 make report           # the real thing: labelling 30k rows takes ~9 min on an RTX 4070 Ti SUPER
                       # (~35 min on M4 Pro MPS), training ~1 min, eval ~40 s
 make status           # which stages are fresh / stale
@@ -129,6 +163,7 @@ dept, urgency, churn = sess.run(None, {"input_ids": ids, "attention_mask": np.on
 ## Layout
 
 ```
+projects/     one folder per goal: goal.txt, spec.json, task.yaml, project.yaml, reports/ (work/ is gitignored)
 configs/      task.yaml (decision contract) · model.yaml · pipeline.yaml (+ smoke profile) · questions.json
 data/holdout/ tickets.jsonl — 224 hand-labelled rows, evaluation only (provenance + labelling policy in its README)
 src/laya_tiny/ one module per stage + stages.py (the cached runner) + cli.py

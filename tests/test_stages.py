@@ -7,7 +7,7 @@ pytestmark = pytest.mark.unit
 
 
 def test_plan_is_topological():
-    full = plan("report")
+    full = plan("package")
     assert full == ORDER
     for name in full:
         for dep in STAGES[name].deps:

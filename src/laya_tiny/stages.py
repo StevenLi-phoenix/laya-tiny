@@ -52,7 +52,8 @@ def _p(*parts: str) -> Callable[[Ctx], list[Path]]:
 
 
 STAGES: dict[str, Stage] = {s.name: s for s in [
-    Stage("data", "data", (), ("data", "seed"), _p("data", "corpus.jsonl")),
+    Stage("data", "data", (), ("data", "seed", "task.decisions", "llm.model", "synth", "project"),
+          lambda ctx: [ctx.path("data", "corpus.jsonl")] + ([ctx.holdout] if ctx.cfg["data"].get("holdout_synth") else [])),
     Stage("label", "teacher", ("data",), ("task.teacher.kind", "task.teacher.checkpoint", "task.teacher.revision", "task.teacher.precision", "task.decisions"),
           lambda ctx: [ctx.path("label", "corpus.jsonl"), ctx.path("label", "holdout.jsonl")],
           lambda ctx: [ctx.holdout]),
@@ -71,6 +72,7 @@ STAGES: dict[str, Stage] = {s.name: s for s in [
     Stage("eval", "evaluate", ("split", "label", "export"), ("eval",),
           _p("eval", "results.json"), lambda ctx: [ctx.holdout]),
     Stage("report", "report", ("eval",), (), _p("report", "report.md")),
+    Stage("package", "package", ("export", "eval", "report"), ("task",), _p("package", "README.md")),
 ]}
 
 ORDER = list(STAGES)

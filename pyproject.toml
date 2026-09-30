@@ -1,6 +1,6 @@
 [project]
 name = "laya-tiny"
-version = "0.1.0"
+version = "0.2.0"
 description = "Distil the Laya typed-decision model into a ~3M-parameter task-specific Transformer, end to end."
 readme = "README.md"
 license = { text = "Apache-2.0" }

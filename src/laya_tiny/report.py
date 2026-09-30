@@ -29,9 +29,13 @@ def pct(x: float | None) -> str:
 
 def render_markdown(res: dict[str, Any]) -> str:
     decs = list(res["decisions"])
+    main = res.get("main_slice", "en")
     L: list[str] = []
     acc = res["acceptance"]
-    L.append(f"# laya-tiny evaluation — {res['generated'][:10]}")
+    L.append(f"# laya-tiny evaluation — {res.get('task', '')} — {res['generated'][:10]}")
+    if res.get("goal"):
+        L.append("")
+        L.append(f"Goal: *{res['goal']}*")
     L.append("")
     L.append(f"Profile `{res['profile']}` · holdout `{res['holdout']['path']}` "
              f"({res['holdout']['en']} English rows, {res['holdout']['other_lang']} other-language rows) · "
@@ -49,13 +53,13 @@ def render_markdown(res: dict[str, Any]) -> str:
         else:
             L.append(f"| {k} | {c['value']:.2f} | ≤ {c['limit']} | {'✅' if c['pass'] else '❌'} |")
     L.append("")
-    L.append("## English holdout")
+    L.append(f"## Holdout ({main})")
     L.append("")
     head = "| backend | size | CPU p50 / p95 (ms) | " + " | ".join(f"{d} acc · F1 · ECE" for d in decs) + " | teacher agreement |"
     L.append(head)
     L.append("|" + "---|" * (4 + len(decs)))
     for b in res["backends"]:
-        en = b["slices"]["en"]
+        en = b["slices"][main]
         lat = b["latency_ms"]
         lat_s = f"{lat['p50']:.2f} / {lat['p95']:.2f}" if lat else "–"
         cells = [f"{pct(en[d]['accuracy'])} · {pct(en[d]['macro_f1'])} · {en[d]['ece']:.3f}" for d in decs]
@@ -68,7 +72,7 @@ def render_markdown(res: dict[str, Any]) -> str:
     others = [b for b in res["backends"] if "other_lang" in b["slices"]]
     if others:
         L.append("")
-        L.append("## Other-language slice (out of scope: the teacher and tokenizer are English-only)")
+        L.append("## Other-language slice (out of scope for the teacher and tokenizer)")
         L.append("")
         L.append("| backend | " + " | ".join(f"{d} acc" for d in decs) + " |")
         L.append("|" + "---|" * (1 + len(decs)))
@@ -86,6 +90,7 @@ def render_chart(res: dict[str, Any], path: Path) -> None:
     import matplotlib.pyplot as plt
 
     decs = list(res["decisions"])
+    main = res.get("main_slice", "en")
     bs = [b for b in res["backends"] if b["latency_ms"] or b["size_bytes"]]
     names = [b["name"] for b in bs]
     colors = [PALETTE.get(b["kind"], "#888") for b in bs]
@@ -125,18 +130,18 @@ def render_chart(res: dict[str, Any], path: Path) -> None:
     ax = axes[2]
     width = 0.8 / len(bs)
     for i, b in enumerate(bs):
-        vals = [100 * b["slices"]["en"][d]["accuracy"] for d in decs]
+        vals = [100 * b["slices"][main][d]["accuracy"] for d in decs]
         xs = [j + (i - (len(bs) - 1) / 2) * width for j in range(len(decs))]
         ax.bar(xs, vals, width=width * 0.92, color=colors[i], label=b["name"])
     ax.set_xticks(range(len(decs)), decs)
     ax.set_ylim(0, 100)
     ax.set_yticks(range(0, 101, 20))
-    ax.set_ylabel("accuracy on English holdout (%)")
+    ax.set_ylabel(f"accuracy on holdout, {main} (%)")
     ax.set_title("Accuracy per decision", loc="left")
     ax.legend(frameon=False, fontsize=8.5, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=3)
     ax.grid(axis="y", color="#e5e2da", linewidth=0.8)
     ax.set_axisbelow(True)
-    fig.suptitle("laya-tiny: Laya distilled into a task-specific Transformer", x=0.01, ha="left",
+    fig.suptitle(f"laya-tiny: {res.get('task', 'Laya')} distilled into a task-specific Transformer", x=0.01, ha="left",
                  fontsize=13, fontweight="bold")
     fig.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)

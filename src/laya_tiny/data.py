@@ -22,7 +22,7 @@ _TAG = re.compile(r"<[^>\n]{1,200}>")
 _SPACES = re.compile(r"[ \t ]+")
 _NEWLINES = re.compile(r"\n{3,}")
 _PLACEHOLDER = re.compile(r"\{\{\s*([^{}]{1,40}?)\s*\}\}")
-_NONALNUM = re.compile(r"[^0-9a-z]+")
+_NONALNUM = re.compile(r"[\W_]+")          # unicode-aware: keeps CJK etc.
 
 # Bitext keeps entities as {{Placeholder}}; fill them so the student never learns braces.
 _FILLERS = {
@@ -168,6 +168,10 @@ def build_corpus(cfg: dict[str, Any], root: Path) -> tuple[list[dict[str, Any]],
             it = read_bitext(download(src["url"], cache_dir), weak.get("bitext_intent", {}))
         elif kind == "templates":
             it = generate_templates(int(src.get("rows", 500)), cfg["seed"])
+        elif kind == "llm_synth":
+            from .synth import generate
+
+            it = generate(cfg, root, int(src.get("rows", 2000)), "train")
         else:
             raise ValueError(f"unknown source kind {kind!r}")
         raw = list(it)
@@ -205,8 +209,31 @@ def build_corpus(cfg: dict[str, Any], root: Path) -> tuple[list[dict[str, Any]],
     return rows, summary
 
 
+def build_synth_holdout(cfg: dict[str, Any], root: Path) -> list[dict[str, Any]]:
+    """Synthetic holdout for goal-driven projects: gold = the label combination the LLM was asked for."""
+    import hashlib
+
+    from .synth import generate
+
+    rows = generate(cfg, root, int(cfg["data"]["holdout_synth"]["rows"]), "holdout")
+    lang = (cfg["data"].get("languages") or ["en"])[0]
+    out = []
+    for r in rows:
+        out.append({"id": "h-" + hashlib.sha1(r["text"].encode()).hexdigest()[:12], "text": r["text"],
+                    **r["weak"], "language": lang, "source": "llm-synth-holdout"})
+    return out
+
+
 def run(ctx: Ctx) -> dict[str, Any]:
     rows, summary = build_corpus(ctx.cfg, ctx.root)
+    if ctx.cfg["data"].get("holdout_synth"):
+        holdout = build_synth_holdout(ctx.cfg, ctx.root)
+        hkeys = {dedup_key(h["text"]) for h in holdout}
+        before = len(rows)
+        rows = [r for r in rows if dedup_key(r["text"]) not in hkeys]
+        write_jsonl(ctx.holdout, holdout)
+        summary["holdout_rows"] = len(holdout)
+        summary["dropped_exact_holdout_dups"] = before - len(rows)
     write_jsonl(ctx.path("data", "corpus.jsonl"), rows)
     for name, st in summary["filters"].items():
         log.info("source %-16s %s", name, st)

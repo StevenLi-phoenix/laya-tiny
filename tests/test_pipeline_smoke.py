@@ -12,7 +12,7 @@ pytestmark = pytest.mark.integration
 
 def test_smoke_pipeline_runs_and_caches(sandbox):
     ctx = Ctx(load_config(sandbox / "configs", "smoke"), sandbox)
-    first = run(ctx, "report")
+    first = run(ctx, "package")
     assert list(first) == ORDER
     work = sandbox / "work-smoke"
     # label files: one full distribution per decision for every row
@@ -26,5 +26,5 @@ def test_smoke_pipeline_runs_and_caches(sandbox):
     assert set(res["acceptance"]["checks"]) >= {"size_int8_mb", "cpu_p50_ms", "accuracy/department"}
     reports = list((work / "reports").glob("*.md"))
     assert reports and (work / "reports" / "overview.png").stat().st_size > 10_000
-    assert run(ctx, "report") == {}                       # everything cached
+    assert run(ctx, "package") == {}                      # everything cached
     assert list(run(ctx, "train", force={"train"})) == ["train"]

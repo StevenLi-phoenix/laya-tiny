@@ -68,7 +68,7 @@ def validate_task(task: dict[str, Any]) -> list[Decision]:
 
 
 def load_config(config_dir: Path = Path("configs"), profile: str | None = None,
-                overrides: dict[str, Any] | None = None) -> dict[str, Any]:
+                overrides: dict[str, Any] | None = None, project: str | None = None) -> dict[str, Any]:
     def _read(name: str) -> dict[str, Any]:
         with open(config_dir / name, encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
@@ -77,6 +77,18 @@ def load_config(config_dir: Path = Path("configs"), profile: str | None = None,
     profiles = cfg.pop("profiles", {}) or {}
     cfg["task"] = _read("task.yaml")
     cfg["model"] = _read("model.yaml")
+    if project:
+        # A goal-driven project (see spec.py): its task.yaml *replaces* the default task (merging
+        # would leave the default decisions in), and project.yaml is an override layer.
+        pdir = config_dir.parent / "projects" / project
+        if not (pdir / "task.yaml").exists():
+            raise ConfigError(f"project {project!r} has no {pdir / 'task.yaml'}; create it with `laya-tiny new`")
+        with open(pdir / "task.yaml", encoding="utf-8") as f:
+            cfg["task"] = yaml.safe_load(f)
+        with open(pdir / "project.yaml", encoding="utf-8") as f:
+            cfg = deep_merge(cfg, yaml.safe_load(f) or {})
+        cfg["project"] = project
+        log.info("project %s loaded", project)
     if profile:
         if profile not in profiles:
             raise ConfigError(f"unknown profile {profile!r}; have {sorted(profiles)}")
@@ -85,6 +97,7 @@ def load_config(config_dir: Path = Path("configs"), profile: str | None = None,
     if overrides:
         cfg = deep_merge(cfg, overrides)
     cfg["profile"] = profile or "default"
+    cfg.setdefault("project", None)
     validate_task(cfg["task"])
     enc = cfg["model"]["encoder"]
     if enc["d_model"] % enc["heads"]:

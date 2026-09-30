@@ -128,8 +128,9 @@ def run(ctx: Ctx) -> dict[str, Any]:
     holdout = read_jsonl(ctx.holdout)
     texts = [h["text"] for h in holdout]
     gold = {d.name: np.asarray([gold_index(d, h[d.name]) for h in holdout]) for d in decs}
-    lang_en = np.asarray([h.get("language", "en") == "en" for h in holdout])
-    slices = {"en": lang_en, "other_lang": ~lang_en}
+    main = (cfg["data"].get("languages") or ["en"])[0]
+    lang_en = np.asarray([h.get("language", main) == main for h in holdout])      # the task's own language
+    slices = {main: lang_en, "other_lang": ~lang_en}
     tlab = read_labels(ctx.path("label", "holdout.jsonl"))
     teacher = {d.name: np.asarray([tlab[h["id"]][d.name] for h in holdout]) for d in decs}
     teacher_kind = cfg["task"]["teacher"]["kind"]
@@ -143,7 +144,7 @@ def run(ctx: Ctx) -> dict[str, Any]:
         entry = {"name": name, "kind": kind, "size_bytes": size, "latency_ms": lat, **extra,
                  "slices": {k: score(decs, probs, gold, teacher, s) for k, s in slices.items() if s.any()}}
         backends.append(entry)
-        en = entry["slices"]["en"]
+        en = entry["slices"][main]
         log.info("%-22s %s  p50=%s ms", name, "  ".join(f"{n}={en[n]['accuracy']:.3f}" for n in names),
                  f"{lat['p50']:.2f}" if lat else "-")
 
@@ -187,23 +188,25 @@ def run(ctx: Ctx) -> dict[str, Any]:
         add(ext["name"], "external", probs, int(ext.get("size_bytes", 0)), ext.get("latency_ms"))
 
     res = {"generated": time.strftime("%Y-%m-%dT%H:%M:%S"), "profile": cfg["profile"],
+           "main_slice": main, "task": cfg["task"].get("name"), "goal": cfg["task"].get("goal"),
            "holdout": {"path": cfg["holdout"], "rows": len(holdout), "en": int(lang_en.sum()),
-                       "other_lang": int((~lang_en).sum())},
+                       "other_lang": int((~lang_en).sum()),
+                       "source": ", ".join(sorted({h.get("source", "?") for h in holdout}))},
            "teacher": teacher_name, "decisions": {d.name: list(d.labels) for d in decs},
            "student": {k: meta[k] for k in ("params", "max_len", "temperatures", "run_id")},
-           "backends": backends, "acceptance": acceptance(backends, names, cfg)}
+           "backends": backends, "acceptance": acceptance(backends, names, cfg, main)}
     write_json(ctx.path("eval", "results.json"), res)
     return {"acceptance": {k: v["pass"] for k, v in res["acceptance"]["checks"].items()}}
 
 
-def acceptance(backends: list[dict[str, Any]], names: list[str], cfg: dict[str, Any]) -> dict[str, Any]:
+def acceptance(backends: list[dict[str, Any]], names: list[str], cfg: dict[str, Any], main: str = "en") -> dict[str, Any]:
     acc = cfg["eval"].get("acceptance") or {}
     margin, max_mb, max_ms = float(acc.get("max_acc_drop", 0.03)), float(acc.get("max_int8_mb", 5)), float(acc.get("max_p50_ms", 5))
     student = next(b for b in backends if b["name"] == "laya-tiny int8")
     teacher = next(b for b in backends if b["kind"] == "teacher")
     checks: dict[str, Any] = {}
     for n in names:
-        s, t = student["slices"]["en"][n]["accuracy"], teacher["slices"]["en"][n]["accuracy"]
+        s, t = student["slices"][main][n]["accuracy"], teacher["slices"][main][n]["accuracy"]
         checks[f"accuracy/{n}"] = {"student": s, "teacher": t, "gap": s - t, "pass": s >= t - margin}
     mb = student["size_bytes"] / 1e6
     checks["size_int8_mb"] = {"value": mb, "limit": max_mb, "pass": mb <= max_mb}

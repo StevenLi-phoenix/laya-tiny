@@ -10,3 +10,7 @@ runs/
 *.onnx.data
 *.pt
 .DS_Store
+projects/*/work/
+projects/*/runs/
+projects/.llm-cache/
+projects/smoke-demo/

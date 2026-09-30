@@ -71,6 +71,11 @@ def write_jsonl(path: Path, rows: Iterable[dict[str, Any]]) -> int:
     return n
 
 
+def read_json(path: Path) -> Any:
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def write_json(path: Path, obj: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
