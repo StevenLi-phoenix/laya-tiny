@@ -6,10 +6,42 @@
 questions about any text in a single forward pass, but it is a 400M-parameter ModernBERT: 1.7 GB in fp32 and still
 467 MB in q4. When the questions never change (here: *which team, how urgent, is the customer about to leave?*)
 you don't need a model that can read arbitrary questions. laya-tiny distils Laya's answers into a
-**~3.3M-parameter Transformer with its own tokenizer and three fixed heads**, trained end to end by one
+**3.35M-parameter Transformer with its own tokenizer and three fixed heads**, trained end to end by one
 reproducible pipeline — the way you'd run a YOLO training loop, just for text triage.
 
-<!-- RESULTS -->
+## Results (v0.1.0, [full report](reports/2026-09-29.md))
+
+English holdout, 205 hand-labelled tickets. CPU latency is single-row on an M4 Pro.
+
+| | department | urgency | churn | size | CPU p50 |
+|---|---|---|---|---|---|
+| **laya-tiny int8** | 66.8 % | 43.9 % | 75.1 % | **4.0 MB** | **0.51 ms** |
+| Laya typed-decisions fp32 (teacher) | 86.3 % | 47.8 % | 81.5 % | 850 MB | 116 ms |
+| Laya typed-decisions q4 | 86.3 % | 53.2 % | 77.6 % | 467 MB | 314 ms |
+| TF-IDF + LogReg on the same teacher labels | 71.2 % | 39.0 % | 85.9 % | 8.4 MB | 0.50 ms |
+
+**Size and speed: met** — 211× smaller than the teacher (≈116× smaller than q4) and ≈230× faster.
+**Accuracy: not met** (target: within 3 pp of the teacher per decision). Gaps: −19.5 / −3.9 / −6.3 pp.
+
+Why, from the numbers rather than a guess:
+
+- **It is distribution shift, not capacity.** On the validation split (same distribution as training) the student
+  agrees with the teacher on 89 % / 89 % / 96 % of rows. On the holdout that drops to 68 % / 62 % / 73 %. The
+  corpus is long, formal IT-support e-mail (Tobi-Bueck) plus e-commerce chatbot one-liners (Bitext); the holdout is
+  short SaaS tickets about invoices, logins and plans. The TF-IDF baseline, trained on the same labels, stalls at
+  71 % on department too — the training text simply doesn't cover the holdout's phrasing.
+- **The teacher is not the ceiling on churn.** TF-IDF beats both Laya checkpoints on churn (85.9 %) because churn is
+  mostly lexical ("cancel", "switch to a competitor"); the teacher's soft labels are noisier than the words.
+- **Urgency is hard for everyone** (teacher 47.8 %): the rubric is fuzzy and the labels are subjective, so a 4 pp gap
+  there is within noise of 205 rows (±7 pp at 95 %).
+- **int8 costs nothing**: argmax agreement with fp32 is 100 % on validation, max probability shift 0.0035.
+- **Teacher precision**: Laya autocasts by default (fp16 on MPS for batches ≥ 5, bf16 on CUDA). The pipeline pins
+  fp32. Measured on 8,704 rows, fp16 vs fp32 labels agree on 99.84–99.97 % of argmaxes (mean TV distance 0.0004), so
+  it matters little in practice, but labels no longer depend on which machine produced them.
+
+Next lever is data, not model size: in-domain synthetic tickets (stratified by department × urgency × churn,
+labelled by the teacher, leak-checked against the holdout) — see the CHANGELOG's Unreleased section.
+
 
 ## What it trades away
 
@@ -56,7 +88,8 @@ labelling run resumes where it stopped and a new question never reuses stale lab
 make setup            # uv venv (py3.12) + editable install with the Laya teacher extra
 make test             # pytest: 50+ unit tests + an end-to-end smoke run
 make smoke            # whole pipeline offline in ~10 s (templated corpus, keyword teacher)
-make report           # the real thing: ~30 min labelling on an M4 Pro, ~10 min training
+make report           # the real thing: labelling 30k rows takes ~9 min on an RTX 4070 Ti SUPER
+                      # (~35 min on M4 Pro MPS), training ~1 min, eval ~40 s
 make status           # which stages are fresh / stale
 make train FORCE=train                          # re-run one stage
 make report SET="data.max_rows=4000 train.epochs=10"   # override any config key

@@ -73,7 +73,12 @@ eval:
     max_int8_mb: 5
     max_p50_ms: 5
   # Predictions made elsewhere on the same holdout (JSONL rows {id, probs: {decision: [..]}}).
-  external: []
+  # Missing files are skipped with a warning (e.g. in CI). `make laya-q4` produces the one below.
+  external:
+    - name: Laya typed-decisions q4
+      predictions: work/external/laya-q4.jsonl
+      size_bytes: 466553014
+      latency_ms: {p50: 314.0, p95: 377.4, what: "laya-ts + onnxruntime-node CPU, batch=1 (make laya-q4)"}
 
 profiles:
   # Offline, CPU, ~1 minute: templated corpus + keyword teacher. Used by `make smoke` and CI.
@@ -90,4 +95,4 @@ profiles:
       tokenizer: {vocab_size: 600}
       encoder: {layers: 2, d_model: 64, heads: 2, max_len: 64}
     train: {epochs: 1, batch_size: 64, device: cpu}
-    eval: {latency_runs: 30, laya_latency_rows: 0}
+    eval: {latency_runs: 30, laya_latency_rows: 0, external: []}

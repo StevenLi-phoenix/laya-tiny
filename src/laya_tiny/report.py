@@ -89,6 +89,14 @@ def render_chart(res: dict[str, Any], path: Path) -> None:
     bs = [b for b in res["backends"] if b["latency_ms"] or b["size_bytes"]]
     names = [b["name"] for b in bs]
     colors = [PALETTE.get(b["kind"], "#888") for b in bs]
+    # Same-kind backends (student int8 / fp32) get progressively lighter shades so bars stay distinguishable.
+    seen: dict[str, int] = {}
+    for i, b in enumerate(bs):
+        k = seen.get(b["kind"], 0)
+        seen[b["kind"]] = k + 1
+        if k:
+            c = matplotlib.colors.to_rgb(colors[i])
+            colors[i] = tuple(x + (1 - x) * min(0.45 * k, 0.8) for x in c)
     plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10, "axes.spines.top": False,
                          "axes.spines.right": False, "axes.titleweight": "bold", "axes.titlesize": 11})
     fig, axes = plt.subplots(1, 3, figsize=(12.8, 4.2), gridspec_kw={"width_ratios": [1, 1, 1.5]})
@@ -122,9 +130,10 @@ def render_chart(res: dict[str, Any], path: Path) -> None:
         ax.bar(xs, vals, width=width * 0.92, color=colors[i], label=b["name"])
     ax.set_xticks(range(len(decs)), decs)
     ax.set_ylim(0, 100)
+    ax.set_yticks(range(0, 101, 20))
     ax.set_ylabel("accuracy on English holdout (%)")
     ax.set_title("Accuracy per decision", loc="left")
-    ax.legend(frameon=False, fontsize=8.5, loc="upper right", ncol=2)
+    ax.legend(frameon=False, fontsize=8.5, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=3)
     ax.grid(axis="y", color="#e5e2da", linewidth=0.8)
     ax.set_axisbelow(True)
     fig.suptitle("laya-tiny: Laya distilled into a task-specific Transformer", x=0.01, ha="left",
